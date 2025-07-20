@@ -1,30 +1,47 @@
+import { readFileSync } from "fs";
+import { join } from "path";
+
 export interface PromptContext {
   title: string;
   body: string;
   diff: string;
   tokenLimit: number;
   thread?: { author: string; body: string }[];
+  repo: { owner: string; repo: string };
+  prNumber: number;
 }
 
 export function buildPrompt(ctx: PromptContext): string {
-  const base = `You are an AI PR review assistant. Provide a concise summary of the pull request and point out potential issues.\n\nTitle: ${ctx.title}\n\nDescription:\n${ctx.body}\n`;
-
-  let threadBlock = "";
-  if (ctx.thread && ctx.thread.length > 0) {
-    threadBlock =
-      "\nPreviously in this conversation:\n" +
-      ctx.thread
-        .map((m) => `@${m.author}: ${m.body.replace(/\n/g, " ")}`)
-        .join("\n") +
-      "\n---\n";
+  // Read the template file from src directory
+  const templatePath = join(process.cwd(), "src", "prompt", "review-template.md");
+  let template: string;
+  try {
+    template = readFileSync(templatePath, "utf8");
+  } catch (error) {
+    throw new Error(`Failed to load prompt template: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
-  // naive truncation based on character length ~ tokens
+  // Format thread context
+  let threadContent = "";
+  if (ctx.thread && ctx.thread.length > 0) {
+    threadContent = ctx.thread
+      .map((m) => `@${m.author}: ${m.body.replace(/\n/g, " ")}`)
+      .join("\n");
+  }
+
+  // Apply diff truncation
   const allowed = ctx.tokenLimit * 4; // rough char estimate
   let diff = ctx.diff;
   if (diff.length > allowed) {
     diff = diff.slice(0, allowed) + "\n... (truncated)";
   }
 
-  return `${base}${threadBlock}\nDiff:\n${diff}`;
+  // Replace template placeholders
+  return template
+    .replace("{{REPO}}", `${ctx.repo.owner}/${ctx.repo.repo}`)
+    .replace("{{PR_NUMBER}}", ctx.prNumber.toString())
+    .replace("{{TITLE}}", ctx.title)
+    .replace("{{BODY}}", ctx.body)
+    .replace("{{DIFF}}", diff)
+    .replace("{{THREAD}}", threadContent);
 } 

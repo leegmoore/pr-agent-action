@@ -28,6 +28,8 @@ async function run() {
       diff: context.diff,
       thread: context.thread,
       tokenLimit: parseInt(core.getInput("max_tokens") || process.env.MAX_TOKENS || "25000", 10),
+      repo: context.repo,
+      prNumber: context.prNumber,
     });
 
     const messages = [
