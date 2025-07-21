@@ -9,6 +9,8 @@ export function isTriggerPresent(triggerPhrase: string): boolean {
     payload.pull_request?.body ||
     "";
   if (!body) return false;
-  const regex = new RegExp(`\\b${triggerPhrase}\\b`, "i");
+  // Escape regex special characters to prevent ReDoS attacks
+  const escapedPhrase = triggerPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`\\b${escapedPhrase}\\b`, "i");
   return regex.test(body);
 } 

@@ -12,8 +12,8 @@ export interface PromptContext {
 }
 
 export function buildPrompt(ctx: PromptContext): string {
-  // Read the template file from src directory
-  const templatePath = join(process.cwd(), "src", "prompt", "review-template.md");
+  // Read the template file using GitHub Action path (ES modules compatible)
+  const templatePath = join(process.env.GITHUB_ACTION_PATH || ".", "src", "prompt", "review-template.md");
   let template: string;
   try {
     template = readFileSync(templatePath, "utf8");

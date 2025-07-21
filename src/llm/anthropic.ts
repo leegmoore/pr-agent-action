@@ -25,23 +25,27 @@ export async function anthropicChat(
 
   const ctl = new AbortController();
   const timeout = setTimeout(() => ctl.abort("timeout"), opts.timeoutMs ?? 60000);
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": opts.apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify(body),
-    signal: ctl.signal,
-  });
-  clearTimeout(timeout);
+  
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": opts.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+      signal: ctl.signal,
+    });
 
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Anthropic API error ${res.status}: ${txt}`);
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Anthropic API error ${res.status}: ${txt}`);
+    }
+
+    const data: any = await res.json();
+    return data?.content?.[0]?.text ?? "";
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data: any = await res.json();
-  return data?.content?.[0]?.text ?? "";
 } 

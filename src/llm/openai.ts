@@ -47,10 +47,17 @@ export async function chatCompletion(
 
   const responsePromise = client.chat.completions.create(params) as Promise<any>;
 
-  const timeoutPromise = new Promise((_r, rej) =>
-    setTimeout(() => rej(new Error("OpenAI request timed out")), timeoutMs),
-  );
+  let timeoutId: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise((_r, rej) => {
+    timeoutId = setTimeout(() => rej(new Error("OpenAI request timed out")), timeoutMs);
+  });
 
-  const res: any = await Promise.race([responsePromise, timeoutPromise]);
-  return res.choices?.[0]?.message?.content ?? "";
+  try {
+    const res: any = await Promise.race([responsePromise, timeoutPromise]);
+    return res.choices?.[0]?.message?.content ?? "";
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 } 

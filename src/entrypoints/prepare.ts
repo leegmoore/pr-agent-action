@@ -19,20 +19,28 @@ async function run() {
   );
 
   // gather PR metadata
-  const prNumber = (github.context.payload.pull_request?.number || github.context.payload.issue?.number) as number;
-  const pr = await octokit.rest.pulls.get({
-    owner: github.context.repo.owner,
-    repo: github.context.repo.repo,
-    pull_number: prNumber,
-  });
+  const prNumber = github.context.payload.pull_request?.number ?? github.context.payload.issue?.number;
+  if (!prNumber) {
+    throw new Error("No PR or issue number found in GitHub context");
+  }
+  let pr, files;
+  try {
+    pr = await octokit.rest.pulls.get({
+      owner: github.context.repo.owner,
+      repo: github.context.repo.repo,
+      pull_number: prNumber,
+    });
 
-  // Get changed files with patch (may be truncated)
-  const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
-    owner: github.context.repo.owner,
-    repo: github.context.repo.repo,
-    pull_number: prNumber,
-    per_page: 100,
-  });
+    // Get changed files with patch (may be truncated)
+    files = await octokit.paginate(octokit.rest.pulls.listFiles, {
+      owner: github.context.repo.owner,
+      repo: github.context.repo.repo,
+      pull_number: prNumber,
+      per_page: 100,
+    });
+  } catch (error) {
+    throw new Error(`GitHub API failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 
   const diff = files
     .map((f) => `File: ${f.filename}\n${f.patch ?? ""}`)
@@ -49,11 +57,16 @@ async function run() {
   };
 
   // Collect recent user replies to agent comment for follow-up context
-  const comments = await octokit.rest.issues.listComments({
-    owner: github.context.repo.owner,
-    repo: github.context.repo.repo,
-    issue_number: prNumber,
-  });
+  let comments;
+  try {
+    comments = await octokit.rest.issues.listComments({
+      owner: github.context.repo.owner,
+      repo: github.context.repo.repo,
+      issue_number: prNumber,
+    });
+  } catch (error) {
+    throw new Error(`GitHub API failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
   const agentIndex = comments.data.findIndex((c) => c.id === commentId);
   if (agentIndex >= 0) {
     const replies = comments.data.slice(agentIndex + 1).filter((c) => !c.user?.login?.includes("github-actions"));

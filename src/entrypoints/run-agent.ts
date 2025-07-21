@@ -13,6 +13,14 @@ function detectProvider(model: string) {
   throw new Error("Unknown model prefix");
 }
 
+function parsePositiveInteger(value: string, fieldName: string): number {
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${fieldName} value: ${value}`);
+  }
+  return parsed;
+}
+
 async function run() {
   try {
     const contextPath = core.getInput("context_file", { required: true });
@@ -27,7 +35,10 @@ async function run() {
       body: context.body,
       diff: context.diff,
       thread: context.thread,
-      tokenLimit: parseInt(core.getInput("max_tokens") || process.env.MAX_TOKENS || "25000", 10),
+      tokenLimit: parsePositiveInteger(
+        core.getInput("max_tokens") || process.env.MAX_TOKENS || "25000",
+        "max_tokens"
+      ),
       repo: context.repo,
       prNumber: context.prNumber,
     });
@@ -44,14 +55,20 @@ async function run() {
         answer = await chatCompletion(messages as any, {
           apiKey: process.env.OPENAI_API_KEY!,
           model,
-          timeoutMs: parseInt(core.getInput("timeout_ms") || process.env.TIMEOUT_MS || "60000", 10),
+          timeoutMs: parsePositiveInteger(
+            core.getInput("timeout_ms") || process.env.TIMEOUT_MS || "60000",
+            "timeout_ms"
+          ),
         });
       } else {
         answer = await anthropicChat(messages as any, {
           apiKey: process.env.ANTHROPIC_API_KEY!,
           model,
           maxTokens: 1024,
-          timeoutMs: parseInt(core.getInput("timeout_ms") || process.env.TIMEOUT_MS || "60000", 10),
+          timeoutMs: parsePositiveInteger(
+            core.getInput("timeout_ms") || process.env.TIMEOUT_MS || "60000",
+            "timeout_ms"
+          ),
         });
       }
     } catch (err: any) {

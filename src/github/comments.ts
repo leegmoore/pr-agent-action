@@ -7,7 +7,10 @@ export async function upsertTrackingComment(
 ): Promise<number> {
   const ctx = github.context;
   const { owner, repo } = ctx.repo;
-  const issueNumber = (ctx.payload.issue?.number || ctx.payload.pull_request?.number) as number;
+  const issueNumber = ctx.payload.issue?.number ?? ctx.payload.pull_request?.number;
+  if (!issueNumber) {
+    throw new Error("No issue or PR number found in GitHub context");
+  }
 
   // Look for existing bot comment
   const list = await octokit.rest.issues.listComments({ owner, repo, issue_number: issueNumber });
